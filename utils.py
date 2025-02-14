@@ -13,28 +13,81 @@ def get_signal_color(response):
         return ""
 
 def create_image(custom_font, text, direction):
-    if text == "":
+    if not text:
         return
+
+    # Measure the text size
     bbox = custom_font.getbbox(text)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
-    image = Image.new('RGB', (text_width + 40, text_height + 80), color='black')
-    draw = ImageDraw.Draw(image)
-    
-    arrow_x_center = (text_width+40) // 2
-    arrow_y_top = 10
-    if direction == "left":
-        draw.line([(arrow_x_center - 5, arrow_y_top + 10), (arrow_x_center + 15, arrow_y_top + 10)], fill=constants.FONT_COLOR, width=3)
-        draw.line([(arrow_x_center + 10, arrow_y_top + 5), (arrow_x_center + 15, arrow_y_top + 10)], fill=constants.FONT_COLOR, width=3)
-        draw.line([(arrow_x_center + 10, arrow_y_top + 15), (arrow_x_center + 15, arrow_y_top + 10)], fill=constants.FONT_COLOR, width=3)
-    elif direction == "right":
-        draw.line([(arrow_x_center - 15, arrow_y_top + 10), (arrow_x_center + 5, arrow_y_top + 10)], fill=constants.FONT_COLOR, width=3)
-        draw.line([(arrow_x_center - 10, arrow_y_top + 5), (arrow_x_center - 15, arrow_y_top + 10)], fill=constants.FONT_COLOR, width=3)
-        draw.line([(arrow_x_center - 10, arrow_y_top + 15), (arrow_x_center - 15, arrow_y_top + 10)], fill=constants.FONT_COLOR, width=3)
 
-    text_x = (40) // 2
-    text_y = arrow_y_top + 30
+    # Create the blank image
+    image = Image.new('RGB', (text_width + 100, text_height + 120), color='black')
+    draw = ImageDraw.Draw(image)
+
+    # -------------------------------------------------------
+    # Arrow dimensions
+    # -------------------------------------------------------
+    arrow_height      = 20   # The rectangle's height (shaft)
+    arrow_rect_length = 40   # The rectangle's width (shaft)
+    arrow_tip_length  = 40   # The triangle's horizontal length
+    triangle_extend   = 10   # How much taller the triangle is (top & bottom) than the rectangle
+
+    arrow_x_center = (text_width + 100) // 2
+    arrow_y_top    = 10
+    arrow_y_bottom = arrow_y_top + arrow_height
+
+    # The total horizontal width of the arrow shape
+    total_arrow_width = arrow_rect_length + arrow_tip_length
+    arrow_x_start = arrow_x_center - (total_arrow_width // 2)
+
+    # Draw the arrow
+    if direction == "left":
+        # Label says "left" but we visually point RIGHT.
+
+        # 1) Rectangle (shaft)
+        rect_coords = [
+            (arrow_x_start, arrow_y_top),  
+            (arrow_x_start + arrow_rect_length, arrow_y_bottom)
+        ]
+        draw.rectangle(rect_coords, fill=constants.FONT_COLOR)
+
+        # 2) Triangle (head) on the right
+        #
+        #    Notice how the 'triangle_extend' makes the top corner 
+        #    go above 'arrow_y_top' and bottom corner go below 'arrow_y_bottom'
+        #    so that the vertical side is taller than the rectangle’s height.
+        triangle_coords = [
+            (arrow_x_start + arrow_rect_length, arrow_y_top - triangle_extend),      # extended top
+            (arrow_x_start + arrow_rect_length + arrow_tip_length, 
+             arrow_y_top + arrow_height // 2),                                      # center tip
+            (arrow_x_start + arrow_rect_length, arrow_y_bottom + triangle_extend)    # extended bottom
+        ]
+        draw.polygon(triangle_coords, fill=constants.FONT_COLOR)
+
+    elif direction == "right":
+        # Label says "right" but we visually point LEFT.
+
+        # 1) Rectangle (shaft)
+        rect_coords = [
+            (arrow_x_start + arrow_tip_length, arrow_y_top),
+            (arrow_x_start + arrow_tip_length + arrow_rect_length, arrow_y_bottom)
+        ]
+        draw.rectangle(rect_coords, fill=constants.FONT_COLOR)
+
+        # 2) Triangle (head) on the left
+        triangle_coords = [
+            (arrow_x_start + arrow_tip_length, arrow_y_top - triangle_extend), 
+            (arrow_x_start, arrow_y_top + arrow_height // 2),
+            (arrow_x_start + arrow_tip_length, arrow_y_bottom + triangle_extend)
+        ]
+        draw.polygon(triangle_coords, fill=constants.FONT_COLOR)
+
+    # Draw the text below the arrow
+    text_x = 50
+    text_y = arrow_y_bottom + 20
     draw.text((text_x, text_y), text, font=custom_font, fill=constants.FONT_COLOR)
+
     return ImageTk.PhotoImage(image)
 
 def display_forward_signal(root, custom_font, color):
