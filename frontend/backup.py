@@ -58,3 +58,33 @@ def display_right_signal(root, custom_font, color):
     label_right_signal.image = photo
     label_right_signal.place(x=10, y=10, anchor='nw')
     
+def display_speed(root, custom_font, current_speed):
+    text = f"hpm {round(current_speed)}"
+    if not text:
+        return
+
+    # Measure text size with the PIL font
+    bbox = custom_font.getbbox(text)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+
+    # Create a PIL image for the text
+    x_margin = 20
+    y_margin = 20
+    image_width = text_width + x_margin * 2
+    image_height = text_height + y_margin * 2
+
+    # Black background
+    image = Image.new('RGB', (image_width, image_height), color='black')
+    draw = ImageDraw.Draw(image)
+
+    # Write the text with the same custom PIL font & color
+    draw.text((x_margin, y_margin), text, font=custom_font, fill=constants.FONT_COLOR)
+
+    # Convert to a PhotoImage
+    photo = ImageTk.PhotoImage(image)
+
+    # Place a label containing this image at bottom-left
+    label_speed = tk.Label(root, image=photo, bg='black')
+    label_speed.image = photo  # keep a reference to avoid GC
+    label_speed.place(relx=1.0, rely=1.0, anchor='se', x=10, y=-10)

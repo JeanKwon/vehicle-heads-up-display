@@ -123,5 +123,12 @@ speed_thread.start()
 # Start polling queues
 root.after(0, poll_queues)
 
+# Press 'q' to terminate program
+def on_key_press(event):
+    if event.char.lower() == 'q':
+        root.destroy()
+
+root.bind("<Key>", on_key_press)
+
 # Run the Tkinter event loop
 root.mainloop()
