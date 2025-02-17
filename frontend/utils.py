@@ -1,6 +1,9 @@
 import tkinter as tk
+import cv2
+import numpy as np
+import os
 from PIL import Image, ImageDraw, ImageTk
-import constants
+import constants, simulate_call
 
 def get_signal_color(response):
     if response == 1:
@@ -139,5 +142,30 @@ def display_speed(root, custom_font, current_speed):
 
     # Place a label containing this image at bottom-left
     label_speed = tk.Label(root, image=photo, bg='black')
-    label_speed.image = photo  # keep a reference to avoid GC
+    label_speed.image = photo
     label_speed.place(relx=1.0, rely=1.0, anchor='se', x=10, y=-10)
+
+# TODO: Replace with Jean's code
+def image_reader():
+    response = None
+    image_path = "traffic_light.jpg"
+
+    if not os.path.exists(image_path):
+        print("Error: File not found -", image_path)
+        return
+
+    img = cv2.imread(image_path)
+
+    if img is None:
+        print("Error: OpenCV cannot read the image. The file might be corrupted or in an unsupported format.")
+        return
+
+    cv2.imshow("Image Stream", img)
+    # Generate response and update global variable
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        cv2.destroyAllWindows()
+
+    response = simulate_call.generate_response()
+    print(response)
+    return response

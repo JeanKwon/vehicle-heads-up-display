@@ -44,7 +44,8 @@ speed_queue = queue.Queue()
 def display_worker():
     global response
     while True:
-        new_response = simulate_call.generate_response()
+        # TODO: Integrate image reader code
+        new_response = utils.image_reader()
         print("Checking for new response...")
         if new_response is not None and new_response != response:
             response = new_response

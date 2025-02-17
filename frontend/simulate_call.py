@@ -5,5 +5,4 @@ def generate_response():
     length = random.choice([1, 2, 3])
     # Generate a number where each digit is between 0 and 3
     response = int("".join(str(random.choice([0, 1, 2, 3])) for _ in range(length)))
-    print(response)
     return response
