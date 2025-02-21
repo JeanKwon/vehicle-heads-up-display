@@ -60,7 +60,7 @@ def bounding_box(f, original, color):
             meta_data_list.append(meta_data_dict)
             # print(meta_data_dict, "\n")
 
-    print(len(meta_data_list), "\n")
+    # print(len(meta_data_list), "\n")
     return meta_data_list
 
 """
