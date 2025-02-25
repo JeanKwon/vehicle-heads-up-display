@@ -160,7 +160,7 @@ def image_reader():
         print("Error: OpenCV cannot read the image. The file might be corrupted or in an unsupported format.")
         return
 
-    cv2.imshow("Image Stream", img)
+    # cv2.imshow("Image Stream", img)
     # Generate response and update global variable
 
     if cv2.waitKey(1) & 0xFF == ord('q'):

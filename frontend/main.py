@@ -3,7 +3,6 @@ from PIL import ImageFont
 import os
 import utils, constants
 import speed
-import simulate_call
 import threading
 import queue
 import time
@@ -44,7 +43,7 @@ speed_queue = queue.Queue()
 def display_worker():
     global response
     while True:
-        # TODO: Integrate image reader code
+        # TODO: Integrate with traffic signal detection code
         new_response = utils.image_reader()
         print("Checking for new response...")
         if new_response is not None and new_response != response:
@@ -107,6 +106,9 @@ def poll_queues():
         # Process speed updates
         while True:
             current_speed = speed_queue.get_nowait()
+
+            if current_speed < 0 or current_speed > constants.MAX_SPEED_THRESHOLD:
+                continue
             update_speed_display(current_speed)
     except queue.Empty:
         pass
