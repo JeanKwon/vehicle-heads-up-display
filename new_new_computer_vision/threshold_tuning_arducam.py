@@ -53,14 +53,17 @@ def bounding_box(f, original, color):
         area = cv2.contourArea(closed_contour)
         
         # TEST and REPLACE WITH ACCURATE RESULTS
-        if (area < 400) and (area > 50): # nishant runs to nearest traffic light and we test
-            # Draw the bounding box
-            cv2.rectangle(original, (x, y), (x + w, y + h), (0, 255, 0), 1)
-            # cv2.rectangle(f, (x, y), (x + w, y + h), (0, 255, 0), 1)
+        #if (area < 400) and (area > 50): # nishant runs to nearest traffic light and we test
+
             
-            meta_data_dict = {"contour": closed_contour, "pixel_area": area, "width": w, "height": h, "color": color}
-            meta_data_list.append(meta_data_dict)
-            # print(meta_data_dict, "\n")
+        # Draw the bounding box
+        cv2.rectangle(original, (x, y), (x + w, y + h), (0, 255, 0), 1)
+        # cv2.rectangle(f, (x, y), (x + w, y + h), (0, 255, 0), 1)
+        
+        meta_data_dict = {"contour": closed_contour, "pixel_area": area, "width": w, "height": h, "color": color}
+        meta_data_list.append(meta_data_dict)
+            
+
 
     # print(len(meta_data_list), "\n")
     return meta_data_list
@@ -68,33 +71,20 @@ def bounding_box(f, original, color):
 def extract_traffic_lights():
     bounding_box_list.sort(key=lambda item: item["contour"][0][0][1], reverse=True)
 
-def shape_dection():
+def detect_shapes():
     shape = "NULL"
-    for box in bounding_box_list:
+    for box in bounding_box_list[:2]: 
         contour = box["contour"]
+        x, y, width, height = cv2.boundingRect(contour)
+        aspect_ratio = width / height  # Compute aspect ratio
 
-        # Compute contour perimeter
-        perimeter = cv2.arcLength(contour, True)
-
-        # Compute contour area
-        area = cv2.contourArea(contour)
-
-        if perimeter == 0:
-            shape = "left"  # Avoid division by zero
-            continue
-
-        circularity = (4 * np.pi * area) / (perimeter ** 2)
-
-        # Threshold for circularity (1.0 is a perfect circle, lower values are less circular)
-        if circularity > 0.75:
-            shape = "circle"
+        # Check if the shape is a circle
+        if 0.9 <= aspect_ratio <= 1.1:  
+            shape = "straight"
         else:
             shape = "left"
-
-        traffic_lights_list[shape].append(box["color"])
-
-
-    return bounding_box_list
+        
+        traffic_lights_list[shape] = box["color"]
 
 
 
@@ -119,19 +109,30 @@ def shape_dection():
                                     "height"            : h,
                                       }
 """
-picam2 = Picamera2()
-config = picam2.create_still_configuration(main={"format": 'RGB888', "size": (1920, 1080)})
-picam2.configure(config)
-picam2.start()
+# picam2 = Picamera2()
+# config = picam2.create_still_configuration(main={"format": 'RGB888', "size": (1920, 1080)})
+# picam2.configure(config)
+# picam2.start()
 
-picam2.set_controls({"AfMode": 2 ,"AfTrigger": 0})
+# picam2.set_controls({"AfMode": 0 ,"AfTrigger": 0, "AfSpeed": 1, "AfRange": 1})        
+
+video_path = "traffic_light_5.h264"
+cap = cv2.VideoCapture(video_path)
+
+if not cap.isOpened():
+    print("Error: Could not open video.")
+    exit()
 
 while True:
 
-    frame = picam2.capture_array()
+    ret, frame = cap.read()
+    if not ret:
+        break  # Exit if video ends
+
+
+   #frame = picam2.capture_array()
     
-    brightness = cv2.getTrackbarPos("Brightness", "Arducam")
-    picam2.set_controls({"Brightness": (brightness - 100)/100})
+  
 
     # meta_data_list
     bounding_box_list = []
@@ -140,7 +141,7 @@ while True:
     yellow_list = []
 
     #final output list for FrontEnd 
-    traffic_lights_list = []
+    traffic_lights_list = {"straight": [], "left": []}
 
     # Convert the frame to HSV color space
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -151,7 +152,7 @@ while True:
     color = "red"
     lower_h = 0
     upper_h = 10
-    lower_s = 142
+    lower_s = 125#142
     upper_s = 255
     lower_v = 120
     upper_v = 255
@@ -215,12 +216,12 @@ while True:
 
     #TODO
     extract_traffic_lights()
-    shape_dection()
+    detect_shapes()
     print(traffic_lights_list)
 
     # ALL PRINTS FOR TEST PURPOSE 
 
-    # print(bounding_box_list)
+    #print(bounding_box_list)
     # frame = cv2.resize(frame, (640,240))
     # filtered_frame = cv2.resize(filtered_frame, (640,240))
     # cv2.imshow("Webcam", frame)
