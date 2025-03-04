@@ -155,6 +155,9 @@ def display_worker():
         green_list = []
         yellow_list = []
 
+        #final output list for FrontEnd 
+        traffic_lights_list = {"straight": [], "left": []}
+
         # Convert the frame to HSV color space
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
@@ -164,9 +167,9 @@ def display_worker():
         color = "red"
         lower_h = 0
         upper_h = 10
-        lower_s = 142
+        lower_s = 125#142
         upper_s = 255
-        lower_v = 80
+        lower_v = 120
         upper_v = 255
 
         # Define the lower and upper HSV bounds for the current color range
@@ -187,7 +190,7 @@ def display_worker():
         upper_h = 121
         lower_s = 116
         upper_s = 255
-        lower_v = 80
+        lower_v = 123
         upper_v = 255
 
         # Define the lower and upper HSV bounds for the current color range
@@ -208,7 +211,7 @@ def display_worker():
         upper_h = 56
         lower_s = 146
         upper_s = 255
-        lower_v = 80
+        lower_v = 147
         upper_v = 255
 
         # Define the lower and upper HSV bounds for the current color range
@@ -226,22 +229,31 @@ def display_worker():
 
         bounding_box_list = red_list + green_list + yellow_list
 
+        #TODO
+        bounding_box_list.sort(key=lambda item: item["contour"][0][0][1], reverse=True)
+        shape = "NULL"
+        for box in bounding_box_list[:2]: 
+            contour = box["contour"]
+            x, y, width, height = cv2.boundingRect(contour)
+            aspect_ratio = width / height  # Compute aspect ratio
+
+            # Check if the shape is a circle
+            if 0.9 <= aspect_ratio <= 1.1:  
+                shape = "straight"
+            else:
+                shape = "left"
+            
+            traffic_lights_list[shape] = box["color"]
+        print(traffic_lights_list)
+
         # ALL PRINTS FOR TEST PURPOSE 
 
-        print(bounding_box_list)
-        print()
-        frame = cv2.resize(frame, (840,640))
+        #print(bounding_box_list)
+        # frame = cv2.resize(frame, (640,240))
         # filtered_frame = cv2.resize(filtered_frame, (640,240))
         # cv2.imshow("Webcam", frame)
         cv2.imshow("original", frame)
 
-        # cv2.waitKey(0)
-
-        # Exit loop if 'q' is pressed
-        
-        while (cv2.waitKey(1) & 0xFF == ord('r')):
-            break
-        
         # if cv2.waitKey(1) & 0xFF != ord('q'):
         #     break
         new_response = utils.image_reader()
