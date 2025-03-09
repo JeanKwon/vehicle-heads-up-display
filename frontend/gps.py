@@ -47,7 +47,7 @@ def read_gps_data(serial_port='/dev/ttyACM0'):
                 velocity_mps = distance / time_difference if time_difference > 0 else 0.0
                 velocity_mph = velocity_mps * 2.23694  # Convert to mph
 
-                print(f"Latitude: {msg.latitude}, Longitude: {msg.longitude}, Velocity: {velocity_mph} mph")
+                # print(f"Latitude: {msg.latitude}, Longitude: {msg.longitude}, Velocity: {velocity_mph} mph")
                     
             # Set last location/time as current after most recent calculation
             last_location = current_location

@@ -44,253 +44,189 @@ current_speed = None
 display_queue = queue.Queue()
 speed_queue = queue.Queue()
 
-
 def image_processing(f):
-    blur = f.copy() #cv2.GaussianBlur(frame, (3, 3), 0)
+    blur = f.copy()  # cv2.GaussianBlur(frame, (3, 3), 0)
 
-    # Define a kernel
-    kernel_size1 = (11, 11)  # Adjust for desired size
-    kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_size1) #.MORPH_ELLIPSE
+    # Define kernels
+    kernel_size1 = (11, 11)
+    kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_size1)
+    kernel_size2 = (3, 3)
+    kernel2 = cv2.getStructuringElement(cv2.MORPH_RECT, kernel_size2)
 
-    kernel_size2 = (3, 3)  # Adjust for desired size
-    kernel2 = cv2.getStructuringElement(cv2.MORPH_RECT, kernel_size2) #.MORPH_ELLIPSE
-
-    # Perform the opening operation
+    # Opening
     opened_image = cv2.morphologyEx(f, cv2.MORPH_OPEN, kernel2)
-
-    # Apply Closing (Dilation followed by Erosion)
+    # Closing (Dilation followed by Erosion)
     closed_image = cv2.morphologyEx(opened_image, cv2.MORPH_CLOSE, kernel1)
     return closed_image
 
 # Function to approximate and close a contour
 def approximate_and_close_contour(contour, epsilon_factor=0.02):
-    # Approximate the contour
     epsilon = epsilon_factor * cv2.arcLength(contour, True)
     approx = cv2.approxPolyDP(contour, epsilon, True)
-    
-    # Check if the contour is closed
     if not np.array_equal(approx[0][0], approx[-1][0]):
-        # Add the first point to the end to close the contour
         approx = np.concatenate([approx, approx[:1]], axis=0)
-    
     return approx
 
 def bounding_box(f, original, color):
     meta_data_list = []
 
     gray = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)
-
-    # Apply binary thresholding
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)
-    
-    # Find contours
+
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    # Loop through contours
     for contour in contours:
         closed_contour = approximate_and_close_contour(contour)
-
-        # properties
         x, y, w, h = cv2.boundingRect(closed_contour)
         area = cv2.contourArea(closed_contour)
         
         # TEST and REPLACE WITH ACCURATE RESULTS
-        if (area > 80 and area < 400): # nishant runs to nearest traffic light and we test
+        if 80 < area < 400:
             # Draw the bounding box
             cv2.rectangle(original, (x, y), (x + w, y + h), (0, 0, 255), 1)
-            # cv2.rectangle(f, (x, y), (x + w, y + h), (0, 255, 0), 1)
             
-            meta_data_dict = {"pixel_area": area}# "width": w, "height": h, "color": color} # "contour": closed_contour,
+            # Uncomment color/contour so your later code works
+            meta_data_dict = {
+                "pixel_area": area,
+                "contour": closed_contour,
+                "color": color
+            }
             meta_data_list.append(meta_data_dict)
-            # print(meta_data_dict, "\n")
 
-    # print(len(meta_data_list), "\n")
     return meta_data_list
 
-"""
-        Task that needs to be done:
-        - eliminate all smaller contours and contours within a bigger contour ?
-            -> Do we actually need it? hopefully can filter inner concentric countours, because complexity increases exponentially
+# (If you want to use the PiCamera, uncomment and configure)
+# picam2 = Picamera2()
+# config = picam2.create_still_configuration(main={"format": 'RGB888', "size": (1920, 1080)})
+# picam2.configure(config)
+# picam2.start()
+# picam2.set_controls({"AfMode": 0 ,"AfTrigger": 0, "AfSpeed": 1, "AfRange": 1})
 
-        - Since the contour is closed we can find the area aka the # pixels it bounds
-        - fine tune lower and upper thresholds to get our traffic light
+video_path = "demo.mp4"
+cap = cv2.VideoCapture(video_path)
 
-        No need:
-        - Need to add balck box detection before I try to find traffic lights cuz the assumption is traffic light box is black
-            - in morning it can look grayish 
-
-
-        Define Data Structure:
-
-        bounding box properties =  {"contour"           : closed_contour, 
-                                    "pixel area contour": area, 
-                                    "width"             : w,
-                                    "height"            : h,
-                                      }
-"""
-
-# Define camera object
-picam2 = Picamera2()
-config = picam2.create_still_configuration(main={"format": 'RGB888', "size": (1920, 1080)})
-picam2.configure(config)
-picam2.start()
-picam2.set_controls({"AfMode": 0 ,"AfTrigger": 0, "AfSpeed": 1, "AfRange": 1})
+if not cap.isOpened():
+    print("Error: Could not open video.")
+    exit()
 
 # Display Worker Function
 def display_worker():
     global response
     while True:
-        # TODO: Integrate with traffic signal detection code
-        # if key.char != 'r':
-        #     pass
-        # else:
-        #     return
-
-        # Read a frame from the webcam
-        frame = picam2.capture_array()
-
-        # meta_data_list
-        bounding_box_list = []
-        red_list = []
-        green_list = []
-        yellow_list = []
-
-        #final output list for FrontEnd 
-        traffic_lights_list = {"straight": [], "left": []}
+        # Read a frame from cap (or from picam2 if used)
+        ret, frame = cap.read()
+        if not ret:
+            break  # Exit if video ends
 
         # Convert the frame to HSV color space
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-        # Loop through the three color ranges (Red, Green, Yellow)
-
-        ################################################# RED #################################################
+        #####################################################################
+        # RED
+        #####################################################################
         color = "red"
-        lower_h = 0
-        upper_h = 10
-        lower_s = 125#142
-        upper_s = 255
-        lower_v = 120
-        upper_v = 255
-
-        # Define the lower and upper HSV bounds for the current color range
+        lower_h, upper_h = 0, 10
+        lower_s, upper_s = 125, 255
+        lower_v, upper_v = 120, 255
         lower_bound = np.array([lower_h, lower_s, lower_v])
         upper_bound = np.array([upper_h, upper_s, upper_v])
-
-        # Create a mask for this color range
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
-
         filtered_frame = cv2.bitwise_and(frame, frame, mask=mask)
-
         filtered_frame = image_processing(filtered_frame)
-        red_list = bounding_box(filtered_frame,frame,color)
+        red_list = bounding_box(filtered_frame, frame, color)
 
-        ################################################# GREEN #################################################
+        #####################################################################
+        # GREEN
+        #####################################################################
         color = "green"
-        lower_h = 60
-        upper_h = 121
-        lower_s = 116
-        upper_s = 255
-        lower_v = 123
-        upper_v = 255
-
-        # Define the lower and upper HSV bounds for the current color range
+        lower_h, upper_h = 60, 121
+        lower_s, upper_s = 116, 255
+        lower_v, upper_v = 123, 255
         lower_bound = np.array([lower_h, lower_s, lower_v])
         upper_bound = np.array([upper_h, upper_s, upper_v])
-
-        # Create a mask for this color range
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
-
         filtered_frame = cv2.bitwise_and(frame, frame, mask=mask)
-
         filtered_frame = image_processing(filtered_frame)
-        green_list = bounding_box(filtered_frame,frame,color)
+        green_list = bounding_box(filtered_frame, frame, color)
 
-        ################################################# YELLOW #################################################
+        #####################################################################
+        # YELLOW
+        #####################################################################
         color = "yellow"
-        lower_h = 11
-        upper_h = 56
-        lower_s = 146
-        upper_s = 255
-        lower_v = 147
-        upper_v = 255
-
-        # Define the lower and upper HSV bounds for the current color range
+        lower_h, upper_h = 11, 56
+        lower_s, upper_s = 146, 255
+        lower_v, upper_v = 147, 255
         lower_bound = np.array([lower_h, lower_s, lower_v])
         upper_bound = np.array([upper_h, upper_s, upper_v])
-
-        # Create a mask for this color range
         mask = cv2.inRange(hsv, lower_bound, upper_bound)
-
         filtered_frame = cv2.bitwise_and(frame, frame, mask=mask)
-
         filtered_frame = image_processing(filtered_frame)
-        yellow_list = bounding_box(filtered_frame,frame,color)
-        ##########################################################################################################
+        yellow_list = bounding_box(filtered_frame, frame, color)
 
         bounding_box_list = red_list + green_list + yellow_list
 
-        #TODO
-        bounding_box_list.sort(key=lambda item: item["contour"][0][0][1], reverse=True)
+        # Sort bounding boxes if needed
+        bounding_box_list = sorted(
+            bounding_box_list,
+            key=lambda item: item["contour"][0][0][1],
+            reverse=True
+        )
+
+        # Build final output list for FrontEnd
+        traffic_lights_list = {"straight": [], "left": []}
         shape = "NULL"
-        for box in bounding_box_list[:2]: 
+        for box in bounding_box_list[:2]:
             contour = box["contour"]
             x, y, width, height = cv2.boundingRect(contour)
-            aspect_ratio = width / height  # Compute aspect ratio
-
-            # Check if the shape is a circle
-            if 0.9 <= aspect_ratio <= 1.1:  
+            aspect_ratio = width / height if height else 0
+            if 0.9 <= aspect_ratio <= 1.1:
                 shape = "straight"
             else:
                 shape = "left"
-            
             traffic_lights_list[shape] = box["color"]
-        print(traffic_lights_list)
 
-        # ALL PRINTS FOR TEST PURPOSE 
-
-        #print(bounding_box_list)
-        # frame = cv2.resize(frame, (640,240))
-        # filtered_frame = cv2.resize(filtered_frame, (640,240))
-        # cv2.imshow("Webcam", frame)
+        # Show the bounding-box-annotated frame in one window
         cv2.imshow("original", frame)
+        cv2.waitKey(1)  # **REQUIRED** so OpenCV can refresh its window
 
-        # if cv2.waitKey(1) & 0xFF != ord('q'):
-        #     break
-        new_response = utils.image_reader()
-        print("Checking for new response...")
+        # Convert that traffic_lights_list to your "response"
+        print(traffic_lights_list)
+        new_response = utils.convert_to_display_input(traffic_lights_list)
         if new_response is not None and new_response != response:
             response = new_response
             display_queue.put(response)
-        time.sleep(2)  # Wait for 2 seconds before next check
+
+        print("Checking for new response...")
+        print("Current response:", response)
+
+        time.sleep(0.01)
 
 # Speed Worker Function
 def speed_worker():
     global current_speed
     while True:
         new_speed = speed.get_speed()
+        print("New speed: ", new_speed)
         if current_speed is None or current_speed != new_speed:
             current_speed = new_speed
             speed_queue.put(current_speed)
-        time.sleep(0.1)  # Update every 100 ms
+        time.sleep(0.1)
 
 # Display Function to update GUI
 def display(response):
-    # Clear previous widgets to prevent overlap
+    # Clear previous widgets
     for widget in signals_frame.winfo_children():
         widget.destroy()
 
-    # Check if response exists, else show only speed
+    # Check if response exists
     if response is not None and response != 0:
         # 1-digit and not 0: Only left signal
         if response < 10:
             utils.display_left_signal(signals_frame, custom_font, response % 10)
-        # If 2-digit: No left signal
+        # 2-digit => forward + maybe right
         elif response < 100:
-            # Only forward
             if response % 10 == 0:
-                # Display forward signal
                 utils.display_forward_signal(signals_frame, custom_font, response // 10)
-            # Forward and right
             else:
                 utils.display_forward_signal(signals_frame, custom_font, response // 10)
                 utils.display_right_signal(signals_frame, custom_font, response % 10)
@@ -301,44 +237,38 @@ def display(response):
 
 # Update Speed Display Function
 def update_speed_display(current_speed):
+    print("Current speed:", current_speed)
     utils.display_speed(root, custom_font, current_speed)
-    print(f"Current speed: {current_speed}")  # Optional: Print to console
+    print(f"Current speed: {current_speed}")
 
-# Poll Queues and Update GUI
 def poll_queues():
     try:
-        # Process display updates
         while True:
-            response = display_queue.get_nowait()
-            display(response)
+            resp = display_queue.get_nowait()
+            display(resp)
     except queue.Empty:
         pass
 
     try:
-        # Process speed updates
         while True:
-            current_speed = speed_queue.get_nowait()
-
-            if current_speed < 0 or current_speed > constants.MAX_SPEED_THRESHOLD:
+            spd = speed_queue.get_nowait()
+            if spd < 0 or spd > constants.MAX_SPEED_THRESHOLD:
                 continue
-            update_speed_display(current_speed)
+            update_speed_display(spd)
     except queue.Empty:
         pass
 
-    # Schedule the next poll
-    root.after(50, poll_queues)  # Poll every 50 ms
+    root.after(50, poll_queues)
 
-# Start background threads
+# Start threads
 display_thread = threading.Thread(target=display_worker, daemon=True)
 display_thread.start()
 
 speed_thread = threading.Thread(target=speed_worker, daemon=True)
 speed_thread.start()
 
-# Start polling queues
 root.after(0, poll_queues)
 
-# Press 'q' to terminate program
 def on_key_press(event):
     if event.char.lower() == 'q':
         root.destroy()
@@ -347,5 +277,4 @@ def on_key_press(event):
 
 root.bind("<Key>", on_key_press)
 
-# Run the Tkinter event loop
 root.mainloop()

@@ -169,3 +169,22 @@ def image_reader():
     response = simulate_call.generate_response()
     print(response)
     return response
+
+def convert_to_display_input(traffic_lights_list):
+    display_input = 0
+    if traffic_lights_list['straight'] != None:
+        if traffic_lights_list['straight'] == 'red':
+            display_input = display_input + 10
+        if traffic_lights_list['straight'] == 'yellow':
+            display_input = display_input + 20
+        if traffic_lights_list['straight'] == 'green':
+            display_input = display_input + 30
+    if traffic_lights_list['left'] != None:
+        if traffic_lights_list['left'] == 'red':
+            display_input = display_input + 100
+        if traffic_lights_list['left'] == 'yellow':
+            display_input = display_input + 200
+        if traffic_lights_list['left'] == 'green':
+            display_input = display_input + 300
+
+    return display_input
